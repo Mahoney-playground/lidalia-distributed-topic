@@ -1,3 +1,5 @@
+package uk.org.lidalia.distributedtopic;
+
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -94,7 +96,7 @@ public class Record<T> implements Comparable<Record<T>> {
 
     @Override
     public String toString() {
-        return "Record{" +
+        return "uk.org.lidalia.distributedtopic.Record{" +
                 "id=" + id +
                 ", value=" + value +
                 ", nodeId=" + nodeId +

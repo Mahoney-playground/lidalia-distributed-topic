@@ -15,6 +15,8 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
+import uk.org.lidalia.distributedtopic.Node;
+import uk.org.lidalia.distributedtopic.Record;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
@@ -32,7 +34,7 @@ public class ReadingFromMultiNodeTest {
 
         final CountDownLatch allProducersReady = new CountDownLatch(1);
 
-        int numberOfProducers = 4;
+        final int numberOfProducers = 4;
         final CountDownLatch allProducersDone = new CountDownLatch(numberOfProducers);
 
         final int numberOfInserts = 5;
@@ -69,13 +71,14 @@ public class ReadingFromMultiNodeTest {
             waitUntil(new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {
-                    return node.synced();
+                    return node.records().size() == numberOfProducers * numberOfInserts;
                 }
             });
         }
+        Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS);
 
-        assertThat(feedConsumer.getConsumed().size(), is(numberOfProducers * numberOfInserts));
         assertThat(feedConsumer.getConsumed(), hasItems(list(1, numberOfProducers * numberOfInserts)));
+        assertThat(feedConsumer.getConsumed().size(), is(numberOfProducers * numberOfInserts));
     }
 
     private void waitUntil(Callable<Boolean> condition) throws Exception {
@@ -95,6 +98,9 @@ public class ReadingFromMultiNodeTest {
                     node.syncWith(otherNode);
                 }
             }
+        }
+        for (Node<Integer> node : nodes) {
+            node.start();
         }
         return ImmutableList.copyOf(nodes);
     }

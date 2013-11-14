@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
+import uk.org.lidalia.distributedtopic.Node;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
