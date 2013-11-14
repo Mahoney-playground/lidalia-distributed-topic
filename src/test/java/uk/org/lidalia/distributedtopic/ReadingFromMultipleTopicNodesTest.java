@@ -1,7 +1,8 @@
+package uk.org.lidalia.distributedtopic;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -15,31 +16,27 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
-import uk.org.lidalia.distributedtopic.Node;
-import uk.org.lidalia.distributedtopic.Record;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.assertThat;
 import static uk.org.lidalia.lang.Exceptions.throwUnchecked;
 
-public class ReadingFromMultiNodeTest {
+public class ReadingFromMultipleTopicNodesTest {
 
     @Test
     public void eventuallyConsistent() throws Exception {
         final AtomicInteger dataToStore = new AtomicInteger(0);
 
         final int numberOfNodes = 4;
-        final List<Node<Integer>> nodes = nodes(numberOfNodes);
+        final List<TopicNode> nodes = nodes(numberOfNodes);
 
         final CountDownLatch allProducersReady = new CountDownLatch(1);
 
         final int numberOfProducers = 4;
         final CountDownLatch allProducersDone = new CountDownLatch(numberOfProducers);
 
-        final int numberOfInserts = 5;
-
-
+        final int numberOfInserts = 30;
 
         for (int i = 1; i <= numberOfProducers; i++) {
             ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -52,7 +49,7 @@ public class ReadingFromMultiNodeTest {
                         final Random random = new Random();
                         for (int j = 1; j <= numberOfInserts; j++) {
                             nodes.get(random.nextInt(numberOfNodes)).store(dataToStore.incrementAndGet());
-                            Uninterruptibles.sleepUninterruptibly(random.nextInt(10), TimeUnit.MILLISECONDS);
+                            Uninterruptibles.sleepUninterruptibly(random.nextInt(100), TimeUnit.MILLISECONDS);
                         }
                     } catch (InterruptedException e) {
                         throwUnchecked(e);
@@ -67,14 +64,6 @@ public class ReadingFromMultiNodeTest {
         allProducersReady.countDown();
         allProducersDone.await();
 
-        for (final Node<Integer> node : nodes) {
-            waitUntil(new Callable<Boolean>() {
-                @Override
-                public Boolean call() throws Exception {
-                    return node.records().size() == numberOfProducers * numberOfInserts;
-                }
-            });
-        }
         Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS);
 
         assertThat(feedConsumer.getConsumed(), hasItems(list(1, numberOfProducers * numberOfInserts)));
@@ -87,19 +76,19 @@ public class ReadingFromMultiNodeTest {
         }
     }
 
-    private List<Node<Integer>> nodes(int numberOfNodes) {
-        List<Node<Integer>> nodes = new ArrayList<>();
+    private List<TopicNode> nodes(int numberOfNodes) {
+        List<TopicNode> nodes = new ArrayList<>();
         for (int i = 1; i <= numberOfNodes; i++) {
-            nodes.add(new Node<Integer>(i));
+            nodes.add(new TopicNode(i));
         }
-        for (Node<Integer> node : nodes) {
-            for (Node<Integer> otherNode : nodes) {
+        for (TopicNode node : nodes) {
+            for (TopicNode otherNode : nodes) {
                 if (otherNode != node) {
                     node.syncWith(otherNode);
                 }
             }
         }
-        for (Node<Integer> node : nodes) {
+        for (TopicNode node : nodes) {
             node.start();
         }
         return ImmutableList.copyOf(nodes);
@@ -115,13 +104,13 @@ public class ReadingFromMultiNodeTest {
 
     private static class FeedConsumer {
         private final Random random = new Random();
-        private final List<Node<Integer>> nodes;
-        private volatile UUID latestRead;
+        private final List<TopicNode> nodes;
+        private volatile SingleNodeVectorClock latestRead;
         private final List<Integer> consumed = new CopyOnWriteArrayList<>();
 
         private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-        private FeedConsumer(List<Node<Integer>> nodes) {
+        private FeedConsumer(List<TopicNode> nodes) {
             this.nodes = nodes;
         }
 
@@ -129,26 +118,26 @@ public class ReadingFromMultiNodeTest {
             executor.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
-                    final Node<Integer> node = nodes.get(random.nextInt(nodes.size()));
-                    final ImmutableList<Record<Integer>> records = node.records2();
-                    System.out.println("records: " + records);
-                    if (!records.isEmpty()) {
-                        int placeToStart = records.size() - 1;
-                        while (placeToStart >= 0 && !records.get(placeToStart).getId().equals(latestRead)) {
+                    final TopicNode node = nodes.get(random.nextInt(nodes.size()));
+                    final ImmutableList<Message> messages = node.consistentMessages();
+                    System.out.println("messages: " + messages);
+                    if (!messages.isEmpty()) {
+                        int placeToStart = messages.size() - 1;
+                        while (placeToStart >= 0 && !messages.get(placeToStart).getVectorClock().equals(latestRead)) {
                             placeToStart--;
                         }
                         placeToStart = placeToStart + 1;
                         System.out.println("placeToStart: " + placeToStart);
-                        for (int i = placeToStart; i < records.size(); i++) {
-                            final Record<Integer> record = records.get(i);
-                            consumed.add(record.get());
-                            latestRead = record.getId();
+                        for (int i = placeToStart; i < messages.size(); i++) {
+                            final Message message = messages.get(i);
+                            consumed.add((Integer) message.get());
+                            latestRead = message.getVectorClock();
                         }
                     }
-                    System.out.println("done, now got: " + consumed);
+                    System.out.println(consumed);
                     System.out.println();
                 }
-            }, 0, 10, TimeUnit.MILLISECONDS);
+            }, 0, 1, TimeUnit.SECONDS);
         }
 
         public List<Integer> getConsumed() {

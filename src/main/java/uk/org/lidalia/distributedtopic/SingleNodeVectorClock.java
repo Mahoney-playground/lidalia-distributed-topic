@@ -23,7 +23,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
 
     private final NodeId nodeId;
     private final ImmutableSortedMap<NodeId, Integer> state;
-    private final Instant timestamp = now();
+    final Instant timestamp = now();
 
     public SingleNodeVectorClock(NodeId nodeId, NodeId... nodeIds) {
         this(nodeId, ImmutableSortedSet.<NodeId>naturalOrder().add(nodeId).add(nodeIds).build());
@@ -112,9 +112,9 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
         } else if (isAfter(other)) {
             return 1;
         } else  {
-            int timestampdiff = timestamp.compareTo(other.timestamp);
-            if (timestampdiff != 0) {
-                return timestampdiff;
+            int timestampDiff = timestamp.compareTo(other.timestamp);
+            if (timestampDiff != 0) {
+                return timestampDiff;
             } else {
                 int diff = sequenceDiff(other);
                 if (diff != 0) {
@@ -133,7 +133,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
                 return diff;
             }
         }
-        return -1;
+        throw new AssertionError("It should be impossible to have two clocks with the same sequences that are not equal");
     }
 
     private int sequenceDiff(SingleNodeVectorClock other) {
@@ -150,7 +150,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
         return acc;
     }
 
-    private boolean isAfter(final SingleNodeVectorClock other) {
+    public boolean isAfter(final SingleNodeVectorClock other) {
         return haveSameNodeSet(other) && from(nodeIds()).allMatch(new Predicate<NodeId>() {
             @Override
             public boolean apply(NodeId nodeId) {
@@ -159,7 +159,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
         });
     }
 
-    private boolean isBefore(final SingleNodeVectorClock other) {
+    public boolean isBefore(final SingleNodeVectorClock other) {
         return haveSameNodeSet(other) && from(nodeIds()).allMatch(new Predicate<NodeId>() {
             @Override
             public boolean apply(NodeId nodeId) {

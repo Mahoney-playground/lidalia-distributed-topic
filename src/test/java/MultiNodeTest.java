@@ -10,11 +10,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
-import uk.org.lidalia.distributedtopic.Node;
 
-import static org.hamcrest.core.Is.is;
+import uk.org.lidalia.distributedtopic.Message;
+import uk.org.lidalia.distributedtopic.TopicNode;
+
+import static com.google.common.collect.FluentIterable.from;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.assertThat;
 import static uk.org.lidalia.lang.Exceptions.throwUnchecked;
@@ -26,11 +29,11 @@ public class MultiNodeTest {
         final AtomicInteger dataToStore = new AtomicInteger(0);
 
         final int numberOfNodes = 4;
-        final List<Node<Integer>> nodes = nodes(numberOfNodes);
+        final List<TopicNode> nodes = nodes(numberOfNodes);
 
         final CountDownLatch allProducersReady = new CountDownLatch(1);
 
-        int numberOfProducers = 10;
+        final int numberOfProducers = 10;
         final CountDownLatch allProducersDone = new CountDownLatch(numberOfProducers);
 
         final int numberOfInserts = 10;
@@ -59,19 +62,28 @@ public class MultiNodeTest {
         allProducersReady.countDown();
         allProducersDone.await();
 
-        for (final Node<Integer> node : nodes) {
+        for (final TopicNode node : nodes) {
             waitUntil(new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {
-                    return node.synced();
+                    return node.allMessages().size() == numberOfProducers * numberOfInserts;
                 }
             });
         }
 
-        for (Node<Integer> node : nodes) {
-            final ImmutableList<Integer> records = node.records();
+        for (TopicNode node : nodes) {
+            final ImmutableList<Integer> records = from(node.allMessages()).transform(toPayload()).toList();
             assertThat(records, hasItems(list(1, numberOfProducers * numberOfInserts)));
         }
+    }
+
+    private Function<? super Message, Integer> toPayload() {
+        return new Function<Message, Integer>() {
+            @Override
+            public Integer apply(Message message) {
+                return (Integer) message.get();
+            }
+        };
     }
 
     private void waitUntil(Callable<Boolean> condition) throws Exception {
@@ -80,13 +92,13 @@ public class MultiNodeTest {
         }
     }
 
-    private List<Node<Integer>> nodes(int numberOfNodes) {
-        List<Node<Integer>> nodes = new ArrayList<>();
+    private List<TopicNode> nodes(int numberOfNodes) {
+        List<TopicNode> nodes = new ArrayList<>();
         for (int i = 1; i <= numberOfNodes; i++) {
-            nodes.add(new Node<Integer>(i));
+            nodes.add(new TopicNode(i));
         }
-        for (Node<Integer> node : nodes) {
-            for (Node<Integer> otherNode : nodes) {
+        for (TopicNode node : nodes) {
+            for (TopicNode otherNode : nodes) {
                 if (otherNode != node) {
                     node.syncWith(otherNode);
                 }
