@@ -128,9 +128,10 @@ public class ReadingFromMultiNodeTest {
                     System.out.println("records: " + records);
                     if (!records.isEmpty()) {
                         int placeToStart = records.size() - 1;
-                        while (placeToStart > 0 && !records.get(placeToStart).getId().equals(latestRead)) {
+                        while (placeToStart >= 0 && !records.get(placeToStart).getId().equals(latestRead)) {
                             placeToStart--;
                         }
+                        placeToStart = placeToStart + 1;
                         System.out.println("placeToStart: " + placeToStart);
                         for (int i = placeToStart; i < records.size(); i++) {
                             final Record<Integer> record = records.get(i);
@@ -139,6 +140,7 @@ public class ReadingFromMultiNodeTest {
                         }
                     }
                     System.out.println("done, now got: " + consumed);
+                    System.out.println();
                 }
             }, 0, 10, TimeUnit.MILLISECONDS);
         }
