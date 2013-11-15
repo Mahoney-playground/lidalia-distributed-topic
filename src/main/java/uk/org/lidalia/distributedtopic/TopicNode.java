@@ -87,64 +87,6 @@ public class TopicNode {
         }).toList();
     }
 
-    private Comparator<? super Message> sortCriteria(final SingleNodeVectorClock lowestCommonClock) {
-        return new Comparator<Message>() {
-            @Override
-            public int compare(Message message1, Message message2) {
-                final SingleNodeVectorClock vectorClock1 = message1.getVectorClock();
-                final SingleNodeVectorClock vectorClock2 = message2.getVectorClock();
-                if (vectorClock1.equals(vectorClock2)) {
-                    return 0;
-                } else if (vectorClock1.getNodeId().equals(vectorClock2.getNodeId())) {
-                    return vectorClock1.sequenceForDefiningNode() - vectorClock2.sequenceForDefiningNode();
-                } else if (vectorClock1.isBefore(vectorClock2)) {
-                    return  -1;
-                } else if (vectorClock1.isAfter(vectorClock2)) {
-                    return 1;
-                } else if (vectorClock1.isBefore(lowestCommonClock) && !vectorClock2.isBefore(lowestCommonClock)) {
-                    return -1;
-                } else if (vectorClock2.isBefore(lowestCommonClock) && !vectorClock1.isBefore(lowestCommonClock)) {
-                    return 1;
-                } else  {
-                    int timestampDiff = vectorClock1.timestamp.compareTo(vectorClock2.timestamp);
-                    if (timestampDiff != 0) {
-                        return timestampDiff;
-                    } else {
-                        int diff = sequenceDiff(vectorClock1, vectorClock2);
-                        if (diff != 0) {
-                            return diff;
-                        } else {
-                            return orderedSequenceCompare(vectorClock1, vectorClock2);
-                        }
-                    }
-                }
-            }
-            private int orderedSequenceCompare(SingleNodeVectorClock vectorClock1, SingleNodeVectorClock vectorClock2) {
-                for (NodeId nodeId : vectorClock1.nodeIds()) {
-                    int diff = vectorClock1.sequenceFor(nodeId).get() - vectorClock2.sequenceFor(nodeId).or(0);
-                    if (diff != 0) {
-                        return diff;
-                    }
-                }
-                throw new AssertionError("It should be impossible to have two clocks with the same sequences that are not equal");
-            }
-
-            private int sequenceDiff(SingleNodeVectorClock vectorClock1, SingleNodeVectorClock vectorClock2) {
-                int sequenceTotal = total(vectorClock1.getState().values());
-                int otherSequenceTotal = total(vectorClock2.getState().values());
-                return sequenceTotal - otherSequenceTotal;
-            }
-
-            private int total(ImmutableCollection<Integer> values) {
-                int acc = 0;
-                for (Integer value : values) {
-                    acc += value;
-                }
-                return acc;
-            }
-        };
-    }
-
     public ImmutableList<Message> allMessages() {
         return from(ImmutableList.copyOf(messages)).filter(outHeartbeats()).toList();
     }
