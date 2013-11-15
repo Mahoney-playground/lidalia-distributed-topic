@@ -5,9 +5,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class Message implements Comparable<Message> {
 
     private final Object value;
-    private final SingleNodeVectorClock vectorClock;
+    private final VectorClock vectorClock;
 
-    public Message(Object value, SingleNodeVectorClock vectorClock) {
+    public Message(Object value, VectorClock vectorClock) {
         this.value = checkNotNull(value);
         this.vectorClock = checkNotNull(vectorClock);
     }
@@ -16,13 +16,13 @@ public class Message implements Comparable<Message> {
         return value;
     }
 
-    public SingleNodeVectorClock getVectorClock() {
+    public VectorClock getVectorClock() {
         return vectorClock;
     }
 
     @Override
     public int compareTo(Message o) {
-        return vectorClock.compareTo(o.vectorClock);
+        return vectorClock.getLocalClock().compareTo(o.vectorClock.getLocalClock());
     }
 
     @Override

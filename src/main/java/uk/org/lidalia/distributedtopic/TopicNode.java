@@ -1,13 +1,11 @@
 package uk.org.lidalia.distributedtopic;
 
-import java.util.Comparator;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 
@@ -56,7 +54,7 @@ public class TopicNode {
 
     private void storeMessage(Object value) {
         vectorClock = vectorClock.next();
-        final Message message = new Message(value, vectorClock.getLocalClock());
+        final Message message = new Message(value, vectorClock);
         messages.add(message);
         synchroniser.synchronise(message);
     }
@@ -82,7 +80,7 @@ public class TopicNode {
         return from(messageSnapshot).filter(outHeartbeats()).takeWhile(new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
-                return message.getVectorClock().isBefore(lowestCommonClock);
+                return message.getVectorClock().getLocalClock().isBefore(lowestCommonClock);
             }
         }).toList();
     }
