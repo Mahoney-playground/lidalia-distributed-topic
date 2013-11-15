@@ -11,7 +11,7 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 
-import static com.google.common.collect.FluentIterable.from;
+import static uk.org.lidalia.distributedtopic.FluentIterable2.from;
 
 public class TopicNode {
 
@@ -79,7 +79,7 @@ public class TopicNode {
         System.out.println("all messages: "+messageSnapshot);
         System.out.println("vectorClock: "+vectorClock);
         System.out.println("lowestCommonClock: "+lowestCommonClock);
-        return from(from(messageSnapshot).filter(outHeartbeats()).toSortedSet(sortCriteria(lowestCommonClock))).filter(new Predicate<Message>() {
+        return from(messageSnapshot).filter(outHeartbeats()).takeWhile(new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
                 return message.getVectorClock().isBefore(lowestCommonClock);
