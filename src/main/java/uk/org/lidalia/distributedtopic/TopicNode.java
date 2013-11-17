@@ -18,7 +18,7 @@ public class TopicNode {
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private final ConcurrentSkipListSet<Message> messages = new ConcurrentSkipListSet<>();
-    private volatile VectorClock vectorClock;
+    private volatile DistributedVectorClock vectorClock;
 
     private final NodeId id;
 
@@ -27,16 +27,14 @@ public class TopicNode {
 
     public TopicNode(final int id) {
         this.id = new NodeId(id);
-        this.vectorClock = new VectorClock(this.id);
+        this.vectorClock = new DistributedVectorClock(this.id);
     }
 
     public void start() {
         executor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                synchronized (lock) {
-                    storeMessage(heartBeat);
-                }
+                store(heartBeat);
             }
         }, 0, 100, TimeUnit.MILLISECONDS);
     }
@@ -48,15 +46,11 @@ public class TopicNode {
 
     public void store(final Object value) {
         synchronized (lock) {
-            storeMessage(value);
+            vectorClock = vectorClock.next();
+            final Message message = new Message(value, vectorClock.getLocalClock());
+            messages.add(message);
+            synchroniser.synchronise(message);
         }
-    }
-
-    private void storeMessage(Object value) {
-        vectorClock = vectorClock.next();
-        final Message message = new Message(value, vectorClock);
-        messages.add(message);
-        synchroniser.synchronise(message);
     }
 
     public void sync(Message message) {
@@ -68,7 +62,7 @@ public class TopicNode {
 
     public ImmutableList<Message> consistentMessages() {
         final ImmutableSortedSet<Message> messageSnapshot;
-        final VectorClock vectorClock;
+        final DistributedVectorClock vectorClock;
         synchronized (lock) {
             messageSnapshot = ImmutableSortedSet.copyOf(messages);
             vectorClock = this.vectorClock;
@@ -77,19 +71,23 @@ public class TopicNode {
         System.out.println("all messages: "+messageSnapshot);
         System.out.println("vectorClock: "+vectorClock);
         System.out.println("lowestCommonClock: "+lowestCommonClock);
-        return from(messageSnapshot).filter(outHeartbeats()).takeWhile(new Predicate<Message>() {
+        return from(messageSnapshot).takeWhile(before(lowestCommonClock)).filter(heartbeats()).toList();
+    }
+
+    private Predicate<Message> before(final SingleNodeVectorClock lowestCommonClock) {
+        return new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
                 return message.getVectorClock().getLocalClock().isBefore(lowestCommonClock);
             }
-        }).toList();
+        };
     }
 
     public ImmutableList<Message> allMessages() {
-        return from(ImmutableList.copyOf(messages)).filter(outHeartbeats()).toList();
+        return from(ImmutableList.copyOf(messages)).filter(heartbeats()).toList();
     }
 
-    private Predicate<Message> outHeartbeats() {
+    private Predicate<Message> heartbeats() {
         return new Predicate<Message>() {
             @Override
             public boolean apply(Message message) {

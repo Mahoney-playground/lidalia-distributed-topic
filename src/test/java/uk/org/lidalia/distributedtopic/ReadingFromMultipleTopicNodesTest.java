@@ -36,7 +36,7 @@ public class ReadingFromMultipleTopicNodesTest {
         final int numberOfProducers = 4;
         final CountDownLatch allProducersDone = new CountDownLatch(numberOfProducers);
 
-        final int numberOfInserts = 30;
+        final int numberOfInserts = 15;
 
         for (int i = 1; i <= numberOfProducers; i++) {
             ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -59,12 +59,17 @@ public class ReadingFromMultipleTopicNodesTest {
                 }
             });
         }
-        FeedConsumer feedConsumer = new FeedConsumer(nodes);
+        final FeedConsumer feedConsumer = new FeedConsumer(nodes);
         feedConsumer.start();
         allProducersReady.countDown();
         allProducersDone.await();
 
-        Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS);
+        waitUntil(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return feedConsumer.getConsumed().size() >= numberOfProducers * numberOfInserts;
+            }
+        });
 
         assertThat(feedConsumer.getConsumed(), hasItems(list(1, numberOfProducers * numberOfInserts)));
         assertThat(feedConsumer.getConsumed().size(), is(numberOfProducers * numberOfInserts));
@@ -105,7 +110,7 @@ public class ReadingFromMultipleTopicNodesTest {
     private static class FeedConsumer {
         private final Random random = new Random();
         private final List<TopicNode> nodes;
-        private volatile SingleNodeVectorClock latestRead;
+        private volatile VectorClock latestRead;
         private final List<Integer> consumed = new CopyOnWriteArrayList<>();
 
         private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();

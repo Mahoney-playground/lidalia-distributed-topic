@@ -7,6 +7,8 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
+import com.sun.javafx.geom.Curve;
+
 import org.joda.time.Instant;
 
 import java.util.Map;
@@ -25,22 +27,8 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
     private final ImmutableSortedMap<NodeId, Integer> state;
     final Instant timestamp = now();
 
-    public SingleNodeVectorClock(NodeId nodeId, NodeId... nodeIds) {
-        this(nodeId, ImmutableSortedSet.<NodeId>naturalOrder().add(nodeId).add(nodeIds).build());
-    }
-
-    public SingleNodeVectorClock(NodeId nodeId, ImmutableSet<NodeId> nodeIds) {
-        this(nodeId, initialStateFor(nodeId, nodeIds));
-    }
-
-    private static ImmutableSortedMap<NodeId, Integer> initialStateFor(NodeId nodeId, ImmutableSet<NodeId> nodeIds) {
-        ImmutableSortedMap<NodeId, Integer> initialState = uniqueIndex(nodeIds, new Function<NodeId, Map.Entry<NodeId, Integer>>() {
-            @Override
-            public Map.Entry<NodeId, Integer> apply(NodeId nodeId) {
-                return immutableEntry(nodeId, 0);
-            }
-        });
-        return put(initialState, nodeId, 1);
+    public SingleNodeVectorClock(NodeId nodeId) {
+        this(nodeId, ImmutableSortedMap.of(nodeId, 0));
     }
 
     SingleNodeVectorClock(NodeId nodeId, ImmutableSortedMap<NodeId, Integer> state) {
@@ -174,5 +162,13 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
 
     public ImmutableSortedSet<NodeId> nodeIds() {
         return state.keySet();
+    }
+
+    public SingleNodeVectorClock add(NodeId nodeId) {
+        return update(nodeId, 0);
+    }
+
+    public SingleNodeVectorClock update(SingleNodeVectorClock updatedRemoteClock) {
+        return new SingleNodeVectorClock(nodeId, put(incrementedState(), updatedRemoteClock.getNodeId(), updatedRemoteClock.sequenceForDefiningNode()));
     }
 }

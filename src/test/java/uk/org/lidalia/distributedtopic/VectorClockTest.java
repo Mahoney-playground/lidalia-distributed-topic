@@ -10,12 +10,9 @@ public class VectorClockTest {
 
     @Test
     public void getLowestCommonClock() {
-        VectorClock vectorClock1 = new VectorClock(new NodeId(1), new NodeId(2));
-        System.out.println("vectorClock1: "+vectorClock1);
-        SingleNodeVectorClock localVectorClockOnNode2 = new SingleNodeVectorClock(new NodeId(2), new NodeId(1)).next();
-        System.out.println("localVectorClockOnNode2: "+localVectorClockOnNode2);
+        VectorClock vectorClock1 = new VectorClock(new NodeId(1)).add(new NodeId(2));
+        SingleNodeVectorClock localVectorClockOnNode2 = new SingleNodeVectorClock(new NodeId(2)).add(new NodeId(1)).next();
         VectorClock vectorClock2 = vectorClock1.update(localVectorClockOnNode2);
-        System.out.println("vectorClock2: "+vectorClock2);
 
         assertThat(vectorClock2.getLowestCommonClock().getState(), is(ImmutableSortedMap.<NodeId, Integer>naturalOrder()
                 .put(new NodeId(1), 0)
@@ -25,14 +22,14 @@ public class VectorClockTest {
 
     @Test
     public void update() {
-        VectorClock vectorClock1 = new VectorClock(new NodeId(1), new NodeId(2));
-        SingleNodeVectorClock localVectorClockOnNode2 = new SingleNodeVectorClock(new NodeId(2), new NodeId(1)).next().next();
+        VectorClock vectorClock1 = new VectorClock(new NodeId(1)).add(new NodeId(2));
+        SingleNodeVectorClock localVectorClockOnNode2 = new SingleNodeVectorClock(new NodeId(2)).add(new NodeId(1)).next().next();
         VectorClock vectorClock2 = vectorClock1.update(localVectorClockOnNode2);
 
         ImmutableSortedMap<NodeId, SingleNodeVectorClock> expected =
                 ImmutableSortedMap.<NodeId, SingleNodeVectorClock>naturalOrder()
-                        .put(new NodeId(1), new SingleNodeVectorClock(new NodeId(1), new NodeId(2)).update(new NodeId(2), 3))
-                        .put(new NodeId(2), new SingleNodeVectorClock(new NodeId(2), new NodeId(1)).next().next())
+                        .put(new NodeId(1), new SingleNodeVectorClock(new NodeId(1)).add(new NodeId(2)).update(new NodeId(2), 3))
+                        .put(new NodeId(2), new SingleNodeVectorClock(new NodeId(2)).add(new NodeId(1)).next().next())
                         .build();
         assertThat(vectorClock2.getState(), is(expected));
     }
