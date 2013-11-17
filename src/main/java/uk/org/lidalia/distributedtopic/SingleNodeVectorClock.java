@@ -1,25 +1,17 @@
 package uk.org.lidalia.distributedtopic;
 
-import com.google.common.base.Function;
+import org.joda.time.Instant;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableCollection;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
-import com.sun.javafx.geom.Curve;
 
-import org.joda.time.Instant;
-
-import java.util.Map;
-
-import static com.google.common.base.Optional.fromNullable;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.FluentIterable.from;
-import static com.google.common.collect.Maps.immutableEntry;
 import static org.joda.time.Instant.now;
 import static uk.org.lidalia.distributedtopic.Maps2.put;
-import static uk.org.lidalia.distributedtopic.Maps2.uniqueIndex;
 
 public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> {
 
@@ -86,7 +78,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
 
     @Override
     public String toString() {
-        return "{"+nodeId+","+state+'}';
+        return state.toString();
     }
 
     @Override
@@ -165,7 +157,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
     }
 
     public SingleNodeVectorClock add(NodeId nodeId) {
-        return update(nodeId, 0);
+        return update(new SingleNodeVectorClock(nodeId));
     }
 
     public SingleNodeVectorClock update(SingleNodeVectorClock updatedRemoteClock) {

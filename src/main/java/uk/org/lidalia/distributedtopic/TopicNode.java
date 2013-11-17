@@ -4,6 +4,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
@@ -24,6 +25,7 @@ public class TopicNode {
 
     private final Object lock = new Object();
     private final Synchroniser synchroniser = new Synchroniser();
+    private final AtomicBoolean needsHeartbeat = new AtomicBoolean(false);
 
     public TopicNode(final int id) {
         this.id = new NodeId(id);
@@ -34,7 +36,9 @@ public class TopicNode {
         executor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                store(heartBeat);
+                if (synchroniser.queue() < (vectorClock.getState().size() * 2) && needsHeartbeat.getAndSet(false)) {
+                    store(heartBeat);
+                }
             }
         }, 0, 100, TimeUnit.MILLISECONDS);
     }
@@ -55,8 +59,9 @@ public class TopicNode {
 
     public void sync(Message message) {
         synchronized (lock) {
-            messages.add(message);
             vectorClock = vectorClock.update(message.getVectorClock());
+            messages.add(message);
+            needsHeartbeat.set(true);
         }
     }
 
@@ -68,7 +73,6 @@ public class TopicNode {
             vectorClock = this.vectorClock;
         }
         final SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
-        System.out.println("all messages: "+messageSnapshot);
         System.out.println("vectorClock: "+vectorClock);
         System.out.println("lowestCommonClock: "+lowestCommonClock);
         return from(messageSnapshot).takeWhile(before(lowestCommonClock)).filter(heartbeats()).toList();

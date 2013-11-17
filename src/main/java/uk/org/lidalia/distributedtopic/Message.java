@@ -43,6 +43,6 @@ public class Message implements Comparable<Message> {
 
     @Override
     public String toString() {
-        return "{"+value +", "+vectorClock+'}';
+        return "{"+value +", "+vectorClock.getNodeId()+", "+vectorClock+'}';
     }
 }

@@ -8,7 +8,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+
 import com.google.common.util.concurrent.Uninterruptibles;
+
+import static org.joda.time.Instant.now;
 
 public class Synchroniser {
 
@@ -22,11 +27,17 @@ public class Synchroniser {
 
     public void synchronise(final Message message) {
         for (final TopicNode node : otherNodes) {
+            final Instant submissionTime = now();
             syncer.submit(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        Uninterruptibles.sleepUninterruptibly(random.nextInt(100), TimeUnit.MILLISECONDS);
+                        final Duration latency = Duration.millis(random.nextInt(5000));
+                        final Instant arrivalTime = submissionTime.plus(latency);
+                        final Duration timeToWait = new Duration(now(), arrivalTime);
+                        if (timeToWait.getMillis() > 0) {
+                            Uninterruptibles.sleepUninterruptibly(timeToWait.getMillis(), TimeUnit.MILLISECONDS);
+                        }
                         node.sync(message);
                     } catch (Throwable t) {
                         t.printStackTrace();

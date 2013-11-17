@@ -1,16 +1,14 @@
 package uk.org.lidalia.distributedtopic;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Maps.immutableEntry;
-import static java.util.Collections.min;
+import static uk.org.lidalia.distributedtopic.Maps2.put;
+import static uk.org.lidalia.distributedtopic.Maps2.uniqueIndex;
 
 public class DistributedVectorClock {
 
@@ -39,38 +37,13 @@ public class DistributedVectorClock {
     }
 
     public SingleNodeVectorClock getLowestCommonClock() {
-        final ImmutableSet<SingleNodeVectorClock> singleNodeVectorClocks = from(state.values()).transform(new Function<VectorClock, SingleNodeVectorClock>() {
+        final ImmutableSortedMap<NodeId, SingleNodeVectorClock> lowestCommonClocks = uniqueIndex(state.values(), new Function<VectorClock, Map.Entry<NodeId, SingleNodeVectorClock>>() {
             @Override
-            public SingleNodeVectorClock apply(VectorClock input) {
-                return input.getLowestCommonClock();
-            }
-        }).toSet();
-
-        ImmutableSet<NodeId> allNodeIds = from(singleNodeVectorClocks).transformAndConcat(new Function<SingleNodeVectorClock, Iterable<NodeId>>() {
-            @Override
-            public Iterable<NodeId> apply(SingleNodeVectorClock input) {
-                return input.nodeIds();
-            }
-        }).toSet();
-
-
-        ImmutableSortedMap<NodeId, Integer> lowestCommonState = Maps2.uniqueIndex(allNodeIds, new Function<NodeId, Map.Entry<NodeId, Integer>>() {
-            @Override
-            public Map.Entry<NodeId, Integer> apply(NodeId nodeId) {
-                Integer minimum = minimumValueFor(nodeId, singleNodeVectorClocks);
-                return immutableEntry(nodeId, minimum);
+            public Map.Entry<NodeId, SingleNodeVectorClock> apply(VectorClock input) {
+                return immutableEntry(input.getNodeId(), input.getLowestCommonClock());
             }
         });
-        return new SingleNodeVectorClock(nodeId, lowestCommonState);
-    }
-
-    private Integer minimumValueFor(final NodeId nodeId, ImmutableSet<SingleNodeVectorClock> singleNodeVectorClocks) {
-        return min(from(singleNodeVectorClocks).transform(new Function<SingleNodeVectorClock, Integer>() {
-            @Override
-            public Integer apply(SingleNodeVectorClock vectorClock) {
-                return vectorClock.sequenceFor(nodeId).or(0);
-            }
-        }).toSet());
+        return new VectorClock(nodeId, lowestCommonClocks).getLowestCommonClock();
     }
 
     @Override
@@ -98,21 +71,18 @@ public class DistributedVectorClock {
         return "{"+nodeId+","+state+'}';
     }
 
-    public DistributedVectorClock update(VectorClock updatedRemoteClock) {
-        Map<NodeId, VectorClock> updatedState = new HashMap<>(state);
-        updatedState.put(updatedRemoteClock.getNodeId(), updatedRemoteClock);
-        final VectorClock update = getLocalClock().update(updatedRemoteClock.getLocalClock());
-        updatedState.put(nodeId, update);
-        return new DistributedVectorClock(nodeId, ImmutableSortedMap.copyOf(updatedState));
+    public DistributedVectorClock update(VectorClock incomingRemoteClock) {
+        final ImmutableSortedMap<NodeId, VectorClock> updatedState1 = put(state, incomingRemoteClock.getNodeId(), incomingRemoteClock);
+        final ImmutableSortedMap<NodeId, VectorClock> updatedState2 = put(updatedState1, nodeId, getLocalClock().update(incomingRemoteClock.getLocalClock()));
+        return new DistributedVectorClock(nodeId, updatedState2);
+    }
+
+    public DistributedVectorClock next() {
+        final ImmutableSortedMap<NodeId, VectorClock> updatedState = put(state, nodeId, getLocalClock().next());
+        return new DistributedVectorClock(nodeId, updatedState);
     }
 
     public DistributedVectorClock add(NodeId otherNode) {
         return update(new VectorClock(otherNode));
-    }
-
-    public DistributedVectorClock next() {
-        Map<NodeId, VectorClock> updatedState = new HashMap<>(state);
-        updatedState.put(getNodeId(), getLocalClock().next());
-        return new DistributedVectorClock(nodeId, ImmutableSortedMap.copyOf(updatedState));
     }
 }
