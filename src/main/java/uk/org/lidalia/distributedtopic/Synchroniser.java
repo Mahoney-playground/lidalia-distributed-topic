@@ -32,7 +32,7 @@ public class Synchroniser {
                 @Override
                 public void run() {
                     try {
-                        final Duration latency = Duration.millis(random.nextInt(5000));
+                        final Duration latency = Duration.millis(random.nextInt(100));
                         final Instant arrivalTime = submissionTime.plus(latency);
                         final Duration timeToWait = new Duration(now(), arrivalTime);
                         if (timeToWait.getMillis() > 0) {

@@ -23,7 +23,6 @@ public class TopicNode {
 
     private final NodeId id;
 
-    private final Object lock = new Object();
     private final Synchroniser synchroniser = new Synchroniser();
     private final AtomicBoolean needsHeartbeat = new AtomicBoolean(false);
 
@@ -48,34 +47,27 @@ public class TopicNode {
         synchroniser.syncWith(otherNode);
     }
 
-    public void store(final Object value) {
-        synchronized (lock) {
-            vectorClock = vectorClock.next();
-            final Message message = new Message(value, vectorClock.getLocalClock());
-            messages.add(message);
-            synchroniser.synchronise(message);
-        }
+    public synchronized void store(final Object value) {
+        vectorClock = vectorClock.next();
+        final Message message = new Message(value, vectorClock.getLocalClock());
+        messages.add(message);
+        synchroniser.synchronise(message);
     }
 
-    public void sync(Message message) {
-        synchronized (lock) {
-            vectorClock = vectorClock.update(message.getVectorClock());
-            messages.add(message);
-            needsHeartbeat.set(true);
-        }
+    public synchronized void sync(Message message) {
+        vectorClock = vectorClock.update(message.getVectorClock());
+        messages.add(message);
+        needsHeartbeat.set(true);
     }
 
-    public ImmutableList<Message> consistentMessages() {
-        final ImmutableSortedSet<Message> messageSnapshot;
-        final DistributedVectorClock vectorClock;
-        synchronized (lock) {
-            messageSnapshot = ImmutableSortedSet.copyOf(messages);
-            vectorClock = this.vectorClock;
-        }
-        final SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
-        System.out.println("vectorClock: "+vectorClock);
-        System.out.println("lowestCommonClock: "+lowestCommonClock);
-        return from(messageSnapshot).takeWhile(before(lowestCommonClock)).filter(heartbeats()).toList();
+    public synchronized ImmutableList<Message> consistentMessagesSince(SingleNodeVectorClock vectorClock1) {
+        SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
+        final ImmutableSortedSet<Message> messageSnapshot = ImmutableSortedSet.copyOf(messages);
+        return from(messageSnapshot).takeWhile(before(ImmutableSortedSet.of(lowestCommonClock, vectorClock1).last())).filter(heartbeats()).toList();
+    }
+
+    public synchronized ImmutableList<Message> consistentMessages() {
+        return consistentMessagesSince(vectorClock.getLowestCommonClock());
     }
 
     private Predicate<Message> before(final SingleNodeVectorClock lowestCommonClock) {
