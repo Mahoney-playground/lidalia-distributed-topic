@@ -12,18 +12,19 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.base.Optional;
 import org.junit.Test;
 
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import static com.google.common.base.Optional.of;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.assertThat;
+import static uk.org.lidalia.distributedtopic.FluentIterable2.from;
 import static uk.org.lidalia.lang.Exceptions.throwUnchecked;
 
 public class ReadingFromMultipleTopicNodesTest {
@@ -38,7 +39,7 @@ public class ReadingFromMultipleTopicNodesTest {
 
         final CountDownLatch allProducersReady = new CountDownLatch(1);
 
-        final int numberOfProducers = 2;
+        final int numberOfProducers = 10;
         final CountDownLatch allProducersDone = new CountDownLatch(numberOfProducers);
 
         final int numberOfInserts = 100;
@@ -76,7 +77,7 @@ public class ReadingFromMultipleTopicNodesTest {
         waitUntil(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                return feedConsumer.isStopped() || feedConsumer.getConsumed().size() >= numberOfProducers * numberOfInserts;
+                return feedConsumer.isStopped() || feedConsumer.getConsumed().size() >= numberOfProducers * numberOfInserts || Iterables.getLast(feedConsumer.getConsumed()) == numberOfProducers * numberOfInserts;
             }
         });
 
@@ -133,44 +134,41 @@ public class ReadingFromMultipleTopicNodesTest {
                 @Override
                 public void run() {
                     final TopicNode node = nodes.get(random.nextInt(nodes.size()));
-                    final ImmutableList<Message> messages;
+                    final FluentIterable2<Message> messages;
                     if (latestRead.isPresent()) {
-                        messages = node.consistentMessagesSince(latestRead.get().getLocalClock());
+                        System.out.println("Getting with latestRead="+latestRead);
+                        messages = from(node.consistentMessagesSince(latestRead.get().getLocalClock()));
                     } else {
-                        messages = node.consistentMessages();
+                        System.out.println("Getting no latestRead");
+                        messages = from(node.consistentMessages());
                     }
-                    if (!messages.isEmpty()) {
-                        int placeToStart = messages.size() - 1;
-                        while (placeToStart >= 0 && !foundLatest(messages, placeToStart)) {
-                            placeToStart--;
+                    consumed.addAll(from(messages).transform(new Function<Message, Integer>() {
+                        @Override
+                        public Integer apply(Message input) {
+                            return (Integer) input.get();
                         }
-                        placeToStart = placeToStart + 1;
-                        for (int i = placeToStart; i < messages.size(); i++) {
-                            final Message message = messages.get(i);
-                            consumed.add((Integer) message.get());
-                            latestRead = of(message.getVectorClock());
+                    }).toList());
+                    latestRead = messages.last().transform(new Function<Message, VectorClock>() {
+                        @Override
+                        public VectorClock apply(Message input) {
+                            return input.getVectorClock();
                         }
-                    }
-                    if (consumed.size() > 0) {
-                        System.out.println("Got " + consumed.size());
-                    }
-                    if (ImmutableSet.copyOf(consumed).size() != consumed.size()) {
+                    }).or(latestRead);
+                    System.out.println("Got " + consumed);
+                    if (containsDuplicates()) {
                         System.out.println("Inconsistent - stopping");
                         System.out.println("Latest read: "+latestRead);
                         System.out.println("Messages: "+messages);
                         System.out.println("Consumed: "+consumed);
                         stop();
                     }
+                    System.out.println();
+                }
+
+                private boolean containsDuplicates() {
+                    return ImmutableSet.copyOf(consumed).size() != consumed.size();
                 }
             }, 0, 10, TimeUnit.MILLISECONDS);
-        }
-
-        private boolean foundLatest(ImmutableList<Message> messages, int placeToStart) {
-            if (latestRead.isPresent()) {
-                return messages.get(placeToStart).getVectorClock().equals(latestRead.get());
-            } else {
-                return false;
-            }
         }
 
         private void stop() {

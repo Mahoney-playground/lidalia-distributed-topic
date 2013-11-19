@@ -87,9 +87,9 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
             return 0;
         } else if (nodeId.equals(other.nodeId)) {
             return sequenceForDefiningNode() - other.sequenceForDefiningNode();
-        } else if (isBefore(other)) {
+        } else if (isAbsolutelyBefore(other)) {
             return  -1;
-        } else if (isAfter(other)) {
+        } else if (isAbsolutelyAfter(other)) {
             return 1;
         } else  {
             int timestampDiff = timestamp.compareTo(other.timestamp);
@@ -130,7 +130,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
         return acc;
     }
 
-    public boolean isAfter(final SingleNodeVectorClock other) {
+    public boolean isAbsolutelyAfter(final SingleNodeVectorClock other) {
         return haveSameNodeSet(other) && from(nodeIds()).allMatch(new Predicate<NodeId>() {
             @Override
             public boolean apply(NodeId nodeId) {
@@ -139,7 +139,7 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
         });
     }
 
-    public boolean isBefore(final SingleNodeVectorClock other) {
+    public boolean isAbsolutelyBefore(final SingleNodeVectorClock other) {
         return haveSameNodeSet(other) && from(nodeIds()).allMatch(new Predicate<NodeId>() {
             @Override
             public boolean apply(NodeId nodeId) {

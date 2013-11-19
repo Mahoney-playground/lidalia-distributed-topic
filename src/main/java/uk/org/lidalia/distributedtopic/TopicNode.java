@@ -60,21 +60,32 @@ public class TopicNode {
         needsHeartbeat.set(true);
     }
 
-    public synchronized ImmutableList<Message> consistentMessagesSince(SingleNodeVectorClock vectorClock1) {
+    public synchronized ImmutableList<Message> consistentMessagesSince(SingleNodeVectorClock incomingVectorClock) {
         SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
         final ImmutableSortedSet<Message> messageSnapshot = ImmutableSortedSet.copyOf(messages);
-        return from(messageSnapshot).takeWhile(before(ImmutableSortedSet.of(lowestCommonClock, vectorClock1).last())).filter(heartbeats()).toList();
+        return from(messageSnapshot).filter(absolutelyBefore(lowestCommonClock)).filter(after(incomingVectorClock)).filter(heartbeats()).toList();
     }
 
-    public synchronized ImmutableList<Message> consistentMessages() {
-        return consistentMessagesSince(vectorClock.getLowestCommonClock());
-    }
-
-    private Predicate<Message> before(final SingleNodeVectorClock lowestCommonClock) {
+    private Predicate<Message> after(final SingleNodeVectorClock incomingVectorClock) {
         return new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
-                return message.getVectorClock().getLocalClock().isBefore(lowestCommonClock);
+                return message.getVectorClock().getLocalClock().compareTo(incomingVectorClock) > 0;
+            }
+        };
+    }
+
+    public synchronized ImmutableList<Message> consistentMessages() {
+        SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
+        final ImmutableSortedSet<Message> messageSnapshot = ImmutableSortedSet.copyOf(messages);
+        return from(messageSnapshot).takeWhile(absolutelyBefore(lowestCommonClock)).filter(heartbeats()).toList();
+    }
+
+    private Predicate<Message> absolutelyBefore(final SingleNodeVectorClock lowestCommonClock) {
+        return new Predicate<Message>() {
+            @Override
+            public boolean apply(final Message message) {
+                return message.getVectorClock().getLocalClock().isAbsolutelyBefore(lowestCommonClock);
             }
         };
     }
