@@ -19,7 +19,7 @@ public class TopicNode {
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private final ConcurrentSkipListSet<Message> messages = new ConcurrentSkipListSet<>();
-    private volatile DistributedVectorClock vectorClock;
+    private volatile VectorClock vectorClock;
 
     private final NodeId id;
 
@@ -28,7 +28,7 @@ public class TopicNode {
 
     public TopicNode(final int id) {
         this.id = new NodeId(id);
-        this.vectorClock = new DistributedVectorClock(this.id);
+        this.vectorClock = new VectorClock(this.id);
     }
 
     public void start() {
@@ -49,13 +49,13 @@ public class TopicNode {
 
     public synchronized void store(final Object value) {
         vectorClock = vectorClock.next();
-        final Message message = new Message(value, vectorClock.getLocalClock());
+        final Message message = new Message(value, vectorClock);
         messages.add(message);
         synchroniser.synchronise(message);
     }
 
     public synchronized void sync(Message message) {
-        vectorClock = vectorClock.update(message.getVectorClock());
+        vectorClock = vectorClock.update(message.getVectorClock().getLocalClock());
         messages.add(message);
         needsHeartbeat.set(true);
     }
