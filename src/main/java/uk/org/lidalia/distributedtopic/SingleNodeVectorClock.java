@@ -167,4 +167,12 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
     public SingleNodeVectorClock update(SingleNodeVectorClock updatedRemoteClock) {
         return new SingleNodeVectorClock(nodeId, put(incrementedState(), updatedRemoteClock.getNodeId(), updatedRemoteClock.sequenceForDefiningNode()));
     }
+
+    boolean isBefore(SingleNodeVectorClock clock) {
+        return compareTo(clock) < 0;
+    }
+
+    public boolean isAfter(SingleNodeVectorClock clock) {
+        return compareTo(clock) > 0;
+    }
 }

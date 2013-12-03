@@ -61,33 +61,33 @@ public class TopicNode {
     }
 
     public synchronized ImmutableList<Message> consistentMessagesSince(SingleNodeVectorClock incomingVectorClock) {
-        return consistentMessagesWithHeartbeats().filter(after(incomingVectorClock)).filter(heartbeats()).toList();
+        return baseConsistentMessages().filter(after(incomingVectorClock)).toList();
     }
 
     private Predicate<Message> after(final SingleNodeVectorClock incomingVectorClock) {
         return new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
-                return message.getVectorClock().compareTo(incomingVectorClock) > 0;
+                return message.isAfter(incomingVectorClock);
             }
         };
     }
 
     public synchronized ImmutableList<Message> consistentMessages() {
-        return consistentMessagesWithHeartbeats().filter(heartbeats()).toList();
+        return baseConsistentMessages().toList();
     }
 
-    private FluentIterable2<Message> consistentMessagesWithHeartbeats() {
+    private FluentIterable2<Message> baseConsistentMessages() {
         SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
         final ImmutableSortedSet<Message> messageSnapshot = ImmutableSortedSet.copyOf(messages);
-        return from(messageSnapshot).takeWhile(absolutelyBefore(lowestCommonClock));
+        return from(messageSnapshot).filter(heartbeats()).takeWhile(before(lowestCommonClock));
     }
 
-    private Predicate<Message> absolutelyBefore(final SingleNodeVectorClock lowestCommonClock) {
+    private Predicate<Message> before(final SingleNodeVectorClock lowestCommonClock) {
         return new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
-                return message.getVectorClock().isAbsolutelyBefore(lowestCommonClock);
+                return message.isBefore(lowestCommonClock);
             }
         };
     }

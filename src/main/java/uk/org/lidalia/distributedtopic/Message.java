@@ -45,4 +45,12 @@ public class Message implements Comparable<Message> {
     public String toString() {
         return "{"+value +", "+vectorClock.getNodeId()+", "+vectorClock+'}';
     }
+
+    boolean isBefore(SingleNodeVectorClock clock) {
+        return getVectorClock().isBefore(clock);
+    }
+
+    boolean isAfter(SingleNodeVectorClock clock) {
+        return getVectorClock().isAfter(clock);
+    }
 }

@@ -69,9 +69,9 @@ public class ReadingFromMultipleTopicNodesTest {
                 }
             });
         }
+        allProducersReady.countDown();
         final FeedConsumer feedConsumer = new FeedConsumer(nodes);
         feedConsumer.start();
-        allProducersReady.countDown();
         allProducersDone.await();
 
         waitUntil(new Callable<Boolean>() {
