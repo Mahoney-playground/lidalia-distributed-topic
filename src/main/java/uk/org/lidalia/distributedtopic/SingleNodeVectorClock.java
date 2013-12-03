@@ -8,6 +8,8 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 
+import java.util.Random;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.FluentIterable.from;
 import static org.joda.time.Instant.now;
@@ -15,9 +17,16 @@ import static uk.org.lidalia.distributedtopic.Maps2.put;
 
 public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> {
 
+    private static final Random random = new Random();
+
     private final NodeId nodeId;
     private final ImmutableSortedMap<NodeId, Integer> state;
-    final Instant timestamp = now();
+    private final Instant timestamp = jitteryNow();
+
+    private Instant jitteryNow() {
+        long jitter = random.nextInt(200) - 100;
+        return now().minus(jitter);
+    }
 
     public SingleNodeVectorClock(NodeId nodeId) {
         this(nodeId, ImmutableSortedMap.of(nodeId, 0));
@@ -92,16 +101,11 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
         } else if (isAbsolutelyAfter(other)) {
             return 1;
         } else  {
-            int timestampDiff = timestamp.compareTo(other.timestamp);
-            if (timestampDiff != 0) {
-                return timestampDiff;
+            int diff = sequenceDiff(other);
+            if (diff != 0) {
+                return diff;
             } else {
-                int diff = sequenceDiff(other);
-                if (diff != 0) {
-                    return diff;
-                } else {
-                    return orderedSequenceCompare(other);
-                }
+                return orderedSequenceCompare(other);
             }
         }
     }
