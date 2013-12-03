@@ -120,7 +120,7 @@ public class ReadingFromMultipleTopicNodesTest {
     private static class FeedConsumer {
         private final Random random = new Random();
         private final List<TopicNode> nodes;
-        private volatile Optional<VectorClock> latestRead = Optional.absent();
+        private volatile Optional<SingleNodeVectorClock> latestRead = Optional.absent();
         private final List<Integer> consumed = new CopyOnWriteArrayList<>();
 
         private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
@@ -137,7 +137,7 @@ public class ReadingFromMultipleTopicNodesTest {
                     final FluentIterable2<Message> messages;
                     if (latestRead.isPresent()) {
                         System.out.println("Getting with latestRead="+latestRead);
-                        messages = from(node.consistentMessagesSince(latestRead.get().getLocalClock()));
+                        messages = from(node.consistentMessagesSince(latestRead.get()));
                     } else {
                         System.out.println("Getting no latestRead");
                         messages = from(node.consistentMessages());
@@ -148,9 +148,9 @@ public class ReadingFromMultipleTopicNodesTest {
                             return (Integer) input.get();
                         }
                     }).toList());
-                    latestRead = messages.last().transform(new Function<Message, VectorClock>() {
+                    latestRead = messages.last().transform(new Function<Message, SingleNodeVectorClock>() {
                         @Override
-                        public VectorClock apply(Message input) {
+                        public SingleNodeVectorClock apply(Message input) {
                             return input.getVectorClock();
                         }
                     }).or(latestRead);

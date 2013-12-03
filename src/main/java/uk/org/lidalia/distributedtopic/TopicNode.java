@@ -49,13 +49,13 @@ public class TopicNode {
 
     public synchronized void store(final Object value) {
         vectorClock = vectorClock.next();
-        final Message message = new Message(value, vectorClock);
+        final Message message = new Message(value, vectorClock.getLocalClock());
         messages.add(message);
         synchroniser.synchronise(message);
     }
 
     public synchronized void sync(Message message) {
-        vectorClock = vectorClock.update(message.getVectorClock().getLocalClock());
+        vectorClock = vectorClock.update(message.getVectorClock());
         messages.add(message);
         needsHeartbeat.set(true);
     }
@@ -68,7 +68,7 @@ public class TopicNode {
         return new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
-                return message.getVectorClock().getLocalClock().compareTo(incomingVectorClock) > 0;
+                return message.getVectorClock().compareTo(incomingVectorClock) > 0;
             }
         };
     }
@@ -87,7 +87,7 @@ public class TopicNode {
         return new Predicate<Message>() {
             @Override
             public boolean apply(final Message message) {
-                return message.getVectorClock().getLocalClock().isAbsolutelyBefore(lowestCommonClock);
+                return message.getVectorClock().isAbsolutelyBefore(lowestCommonClock);
             }
         };
     }
