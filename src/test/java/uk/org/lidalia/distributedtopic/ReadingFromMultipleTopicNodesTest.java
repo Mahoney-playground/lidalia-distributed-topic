@@ -142,7 +142,7 @@ public class ReadingFromMultipleTopicNodesTest {
                         System.out.println("Getting no latestRead");
                         messages = from(node.consistentMessages());
                     }
-                    consumed.addAll(from(messages).transform(new Function<Message, Integer>() {
+                    consumed.addAll(messages.transform(new Function<Message, Integer>() {
                         @Override
                         public Integer apply(Message input) {
                             return (Integer) input.get();

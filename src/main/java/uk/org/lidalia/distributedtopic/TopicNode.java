@@ -61,9 +61,7 @@ public class TopicNode {
     }
 
     public synchronized ImmutableList<Message> consistentMessagesSince(SingleNodeVectorClock incomingVectorClock) {
-        SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
-        final ImmutableSortedSet<Message> messageSnapshot = ImmutableSortedSet.copyOf(messages);
-        return from(messageSnapshot).filter(absolutelyBefore(lowestCommonClock)).filter(after(incomingVectorClock)).filter(heartbeats()).toList();
+        return consistentMessagesWithHeartbeats().filter(after(incomingVectorClock)).filter(heartbeats()).toList();
     }
 
     private Predicate<Message> after(final SingleNodeVectorClock incomingVectorClock) {
@@ -76,9 +74,13 @@ public class TopicNode {
     }
 
     public synchronized ImmutableList<Message> consistentMessages() {
+        return consistentMessagesWithHeartbeats().filter(heartbeats()).toList();
+    }
+
+    private FluentIterable2<Message> consistentMessagesWithHeartbeats() {
         SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
         final ImmutableSortedSet<Message> messageSnapshot = ImmutableSortedSet.copyOf(messages);
-        return from(messageSnapshot).takeWhile(absolutelyBefore(lowestCommonClock)).filter(heartbeats()).toList();
+        return from(messageSnapshot).takeWhile(absolutelyBefore(lowestCommonClock));
     }
 
     private Predicate<Message> absolutelyBefore(final SingleNodeVectorClock lowestCommonClock) {
