@@ -64,15 +64,6 @@ public class TopicNode {
         return baseConsistentMessages().filter(after(incomingVectorClock)).toList();
     }
 
-    private Predicate<Message> after(final SingleNodeVectorClock incomingVectorClock) {
-        return new Predicate<Message>() {
-            @Override
-            public boolean apply(final Message message) {
-                return message.isAfter(incomingVectorClock);
-            }
-        };
-    }
-
     public synchronized ImmutableList<Message> consistentMessages() {
         return baseConsistentMessages().toList();
     }
@@ -88,6 +79,15 @@ public class TopicNode {
             @Override
             public boolean apply(final Message message) {
                 return message.isBefore(lowestCommonClock);
+            }
+        };
+    }
+
+    private Predicate<Message> after(final SingleNodeVectorClock incomingVectorClock) {
+        return new Predicate<Message>() {
+            @Override
+            public boolean apply(final Message message) {
+                return message.isAfter(incomingVectorClock);
             }
         };
     }
