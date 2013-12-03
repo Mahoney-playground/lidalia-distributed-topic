@@ -7,10 +7,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 
-import static uk.org.lidalia.distributedtopic.FluentIterable2.from;
+import static com.google.common.collect.FluentIterable.from;
 
 public class TopicNode {
 
@@ -68,10 +69,10 @@ public class TopicNode {
         return baseConsistentMessages().toList();
     }
 
-    private FluentIterable2<Message> baseConsistentMessages() {
+    private FluentIterable<Message> baseConsistentMessages() {
         SingleNodeVectorClock lowestCommonClock = vectorClock.getLowestCommonClock();
         final ImmutableSortedSet<Message> messageSnapshot = ImmutableSortedSet.copyOf(messages);
-        return from(messageSnapshot).filter(heartbeats()).takeWhile(before(lowestCommonClock));
+        return from(messageSnapshot).filter(heartbeats()).filter(before(lowestCommonClock));
     }
 
     private Predicate<Message> before(final SingleNodeVectorClock lowestCommonClock) {

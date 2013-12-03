@@ -30,15 +30,6 @@ public final class Maps2 {
         return ImmutableSortedMap.copyOf(buffer);
     }
 
-    public static <K, V, I> ImmutableMultimap<K, V> index(Iterable<I> input, Function<? super I, Map.Entry<K, V>> transformer) {
-        Iterable<Map.Entry<K, V>> entries = transform(input, transformer);
-        Multimap<K, V> buffer = ArrayListMultimap.create();
-        for (Map.Entry<K, V> entry : entries) {
-            buffer.put(entry.getKey(), entry.getValue());
-        }
-        return ImmutableMultimap.copyOf(buffer);
-    }
-
     public static <K,V> ImmutableSortedMap<K,V> put(ImmutableMap<K,V> initialState, K key, V value) {
         Map<K, V> map = new HashMap<>(initialState);
         map.put(key, value);

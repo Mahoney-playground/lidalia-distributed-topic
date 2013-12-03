@@ -87,15 +87,13 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
 
     @Override
     public String toString() {
-        return state.toString();
+        return "{"+nodeId+" "+state.toString()+"}";
     }
 
     @Override
     public int compareTo(SingleNodeVectorClock other) {
         if (equals(other)) {
             return 0;
-        } else if (nodeId.equals(other.nodeId)) {
-            return sequenceForDefiningNode() - other.sequenceForDefiningNode();
         } else if (isAbsolutelyBefore(other)) {
             return  -1;
         } else if (isAbsolutelyAfter(other)) {
@@ -110,6 +108,12 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
         }
     }
 
+    private int sequenceDiff(SingleNodeVectorClock other) {
+        int sequenceTotal = total(state.values());
+        int otherSequenceTotal = total(other.state.values());
+        return sequenceTotal - otherSequenceTotal;
+    }
+
     private int orderedSequenceCompare(SingleNodeVectorClock other) {
         for (NodeId nodeId : nodeIds()) {
             int diff = sequenceFor(nodeId).get() - other.sequenceFor(nodeId).or(0);
@@ -118,12 +122,6 @@ public class SingleNodeVectorClock implements Comparable<SingleNodeVectorClock> 
             }
         }
         throw new AssertionError("It should be impossible to have two clocks with the same sequences that are not equal");
-    }
-
-    private int sequenceDiff(SingleNodeVectorClock other) {
-        int sequenceTotal = total(state.values());
-        int otherSequenceTotal = total(other.state.values());
-        return sequenceTotal - otherSequenceTotal;
     }
 
     private int total(ImmutableCollection<Integer> values) {

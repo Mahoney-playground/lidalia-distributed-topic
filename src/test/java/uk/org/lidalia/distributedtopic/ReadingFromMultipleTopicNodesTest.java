@@ -16,15 +16,16 @@ import org.junit.Test;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Uninterruptibles;
 
+import static com.google.common.collect.FluentIterable.from;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.assertThat;
-import static uk.org.lidalia.distributedtopic.FluentIterable2.from;
 import static uk.org.lidalia.lang.Exceptions.throwUnchecked;
 
 public class ReadingFromMultipleTopicNodesTest {
@@ -34,7 +35,7 @@ public class ReadingFromMultipleTopicNodesTest {
         System.out.println("START!");
         final AtomicInteger dataToStore = new AtomicInteger(0);
 
-        final int numberOfNodes = 10;
+        final int numberOfNodes = 9;
         final List<TopicNode> nodes = nodes(numberOfNodes);
 
         final CountDownLatch allProducersReady = new CountDownLatch(1);
@@ -134,7 +135,7 @@ public class ReadingFromMultipleTopicNodesTest {
                 @Override
                 public void run() {
                     final TopicNode node = nodes.get(random.nextInt(nodes.size()));
-                    final FluentIterable2<Message> messages;
+                    final FluentIterable<Message> messages;
                     if (latestRead.isPresent()) {
                         System.out.println("Getting with latestRead="+latestRead);
                         messages = from(node.consistentMessagesSince(latestRead.get()));
